@@ -11,10 +11,13 @@ namespace RevitAPIFramework
     {
         public string id;
         public int index;
-        FamilyInstance revitModule;
-        List<MEPSystem> systems;
+        public int ARKNumber;
+        public FamilyInstance revitModule;
+        public FamilySymbol revitSymbol;
+        public List<MEPSystem> systems;
         public string filename;
         public string filepath;
+        public string mark;
         public ARKModule(string _id, int _index, FamilyInstance _model)
         {
             id = _id;
@@ -38,5 +41,6 @@ namespace RevitAPIFramework
         {
             filepath = s;
         }
+      
     }
 }

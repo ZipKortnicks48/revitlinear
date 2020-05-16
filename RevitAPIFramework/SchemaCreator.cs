@@ -22,11 +22,11 @@ namespace RevitAPIFramework
         public List<RevitAPIFramework.ARKModule> ARKBLocks = new List<RevitAPIFramework.ARKModule>();//набор блоков, которые отрисовывать
         public RevitAPIFramework.Form1 setForm;//форма настроек
         public string[] pathes;
-        static string PluralSuffix(int n)
-        {
-            return 1 == n ? "" : "s";
+        public GeometryAP geometry=new GeometryAP();
+        public List<ElementId> drawingviews = new List<ElementId>();
+        public List<ElementId> arkmoduleIds = new List<ElementId>();
+        public Loader loader=new Loader();
 
-        }
         void getBasEquipments(Document doc)
         {
 
@@ -37,16 +37,22 @@ namespace RevitAPIFramework
             foreach (MEPSystem system in systems)
             {
                 string sysId = system.BaseEquipment.Id.ToString();
+              
                 if (!this.ARKBLocks.Any(element => element.id == sysId))
                 {
                     ARKModule m = new ARKModule(sysId, i, system.BaseEquipment);
+                    m.mark = GetMark(system.BaseEquipment);
                     ARKBLocks.Add(m);
                 }
                 findAndAddSystem(system);
-
             }
                        
            
+        }
+        string GetMark(FamilyInstance ark)
+        {
+            string mark = ark.LookupParameter("Марка").AsString();
+            return mark;
         }
         private void getPathes()
         {
@@ -62,7 +68,6 @@ namespace RevitAPIFramework
         }
         public void loadFamilies(Document doc)
         {
-
             foreach (ARKModule module in ARKBLocks)
             {
                 FilteredElementCollector a = new FilteredElementCollector(doc).OfClass(typeof(Family));
@@ -70,25 +75,17 @@ namespace RevitAPIFramework
                 if (null == family)
                 {
                     string FamilyPath = module.filepath;
-
-                    // Загрузка семейства из файла.
-                    using (Transaction tx = new Transaction(doc))
+                    /*using (Transaction tx = new Transaction(doc))
                     {
                         tx.Start("Загрузка семейства");
                         doc.LoadFamily(FamilyPath, out family);
                         tx.Commit();
-                    }
+                    }*/
+                    loader.LoadFamilyIntoProject(FamilyPath,doc);
                 }
-               // FilteredElementCollector a = new FilteredElementCollector(doc).OfClass(typeof(Family));
             }
         }
-        public bool SaveEveryARKBlockFamily(List<ARKModule> am)
-        { 
-            this.ARKBLocks = am;
-
-
-            return true;
-        }
+        
 
         public delegate void SaveAB(List<ARKModule> module);
         //Добавление системы шлейфа к блоку
@@ -99,12 +96,6 @@ namespace RevitAPIFramework
         void DrawAll(Document doc)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
-            //List<AnnotationSymbolType> l = new List<AnnotationSymbolType>();
-            //l = (from e in collector.ToElements() where e is AnnotationSymbolType select e as AnnotationSymbolType).ToList();
-            /*if (l.Any(e=>e.FamilyName=="ark-module-1"))
-                { 
-                Console.WriteLine("good");
-                }*/
             foreach (ARKModule b in ARKBLocks)
             {
                 FamilySymbol famToPlace=null;
@@ -114,28 +105,106 @@ namespace RevitAPIFramework
                 trans.Start("Отрисовка");
                 ViewDrafting vd = ViewDrafting.Create(doc, id);
                 ElementId viewId = vd.Id;
-                foreach(FamilySymbol f in collector)
+                drawingviews.Add(viewId);
+                famToPlace = collector.Cast<FamilySymbol>().Where(x => x.Name == b.filename).First();
+                b.revitSymbol = famToPlace;               
+                b.revitModule=doc.Create.NewFamilyInstance(new XYZ(0,0,0),famToPlace,vd);
+                arkmoduleIds.Add(b.revitModule.Id);
+                trans.Commit();
+                
+            }
+
+            SetArkIndexes(doc);
+
+            DrawLines(doc);
+
+            
+            
+
+        }
+        void SetArkIndexes(Document doc)
+        {
+            FilteredElementCollector placedCollector = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance));
+            foreach (ARKModule b in ARKBLocks)
+            {
+                foreach (FamilyInstance f in placedCollector)
                 {
-                    if (f.Name == b.filename)
+                    
+                    if (f.Id.ToString() == b.revitModule.Id.ToString())
                     {
-                        famToPlace = f;
-                        foreach (Parameter p in famToPlace.Parameters)
+                        Parameter param=f.LookupParameter("ark-module");
+                        
+                        Parameter param2 = f.LookupParameter("ark-module");
+                        using (Transaction t = new Transaction(doc, "Добавление индексов"))
                         {
-                            if (p.Definition.Name == "ark-module")
-                            {
-                                p.Set(b.id.ToString());
-                            }
+                            t.Start();
+                            param2.Set(Int32.Parse(b.mark.Remove(b.mark.IndexOf("ARK"), 3)));
+                            t.Commit();
                         }
                         break;
                     }
                 }
-               
-                doc.Create.NewFamilyInstance(new XYZ(0,0,0),famToPlace,vd);
-                trans.Commit();
             }
         }
-        void DrawOne(Document doc)
+        void DrawLines(Document doc)
         {
+            
+            foreach (ElementId vd in drawingviews)
+            {
+                
+                ViewDrafting view = new FilteredElementCollector(doc).OfClass(typeof(ViewDrafting)).Cast<ViewDrafting>().Where(x => x.Id==vd).FirstOrDefault();
+                FamilyInstance ark  = new FilteredElementCollector(doc, vd).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x=>arkmoduleIds.Contains(x.Id)).FirstOrDefault();
+                List<XYZ> points = new List<XYZ>();
+                points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 , ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2, 0));
+                points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
+                points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 + 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
+                geometry.AddLines(doc,view,geometry.ConnectLinesByPoints(points));
+                DrawShleifs(points[2],doc,view);
+            }
+            
+        }
+        
+        void DrawShleifs(XYZ point, Document doc, ViewDrafting view)
+        {
+            //добавление семейтсва
+            string file_path=File.ReadAllText("settings.set");
+            file_path += "\\static\\ARKRIGHTOUTPUT.rfa";
+            loader.LoadFamilyIntoProject(file_path,doc);
+            //соответствие арк
+            ARKModule ark = null;
+            FamilyInstance f = new FilteredElementCollector(doc,view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x => arkmoduleIds.Contains(x.Id)).FirstOrDefault();
+            foreach (ARKModule module in ARKBLocks)
+            {
+                if (module.revitModule.Id == f.Id)
+                {
+                    ark = module;
+                }
+            }
+            //добавление экземпляров на виды по точке
+                double len = 0;
+                int index = 0;
+                FamilyInstance next = null;
+                foreach (MEPSystem mep in ark.systems)
+                {
+                    FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHTOUTPUT").FirstOrDefault();
+                Transaction trans = new Transaction(doc);
+                trans.Start("Помещен на рисунок");
+                    next=doc.Create.NewFamilyInstance(new XYZ(point.X, point.Y-index*len*10, 0), famToPlace, view);
+                trans.Commit();
+                trans.Start("добавление параметров");
+                    next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
+                trans.Commit();
+                trans.Start("добавление параметров");
+                next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.Name));
+                trans.Commit();
+                len = next.LookupParameter("Ширина").AsDouble();
+               
+                ++index;
+
+            }
+            
+            //расстановка параметров
+            //добавлегте 
 
         }
         public Result Execute(
@@ -150,6 +219,7 @@ namespace RevitAPIFramework
             this.getPathes();
             this.loadFamilies(doc);
             this.DrawAll(doc);//отрисовка
+            
             return Result.Succeeded;
         }
     }
