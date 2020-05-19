@@ -12,6 +12,7 @@ using Autodesk.Revit.DB.Electrical;
 using System.Text;
 using RevitAPIFramework;
 using System.IO;
+using System.Data.SqlTypes;
 
 namespace RevitAPIFramework
 {
@@ -26,15 +27,16 @@ namespace RevitAPIFramework
         public List<ElementId> drawingviews = new List<ElementId>();
         public List<ElementId> arkmoduleIds = new List<ElementId>();
         public Loader loader=new Loader();
-
+        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa" }; 
         void getBasEquipments(Document doc)
         {
 
             FilteredElementCollector systems
              = new FilteredElementCollector(doc)
                .OfClass(typeof(MEPSystem));
+            IOrderedEnumerable<MEPSystem> systemsSorted =  from MEPSystem s in systems orderby Int32.Parse(s.Name) ascending select s;
             int i = 0;
-            foreach (MEPSystem system in systems)
+            foreach (MEPSystem system in systemsSorted)
             {
                 string sysId = system.BaseEquipment.Id.ToString();
               
@@ -46,7 +48,7 @@ namespace RevitAPIFramework
                 }
                 findAndAddSystem(system);
             }
-                       
+                    
            
         }
         string GetMark(FamilyInstance ark)
@@ -166,10 +168,12 @@ namespace RevitAPIFramework
         
         void DrawShleifs(XYZ point, Document doc, ViewDrafting view)
         {
-            //добавление семейтсва
-            string file_path=File.ReadAllText("settings.set");
-            file_path += "\\static\\ARKRIGHTOUTPUT.rfa";
-            loader.LoadFamilyIntoProject(file_path,doc);
+            foreach (string s in staticFamilies)
+            {
+                string file_path = File.ReadAllText("settings.set");
+                file_path += "\\static\\"+s;
+                loader.LoadFamilyIntoProject(file_path, doc);
+            }
             //соответствие арк
             ARKModule ark = null;
             FamilyInstance f = new FilteredElementCollector(doc,view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x => arkmoduleIds.Contains(x.Id)).FirstOrDefault();
@@ -184,28 +188,92 @@ namespace RevitAPIFramework
                 double len = 0;
                 int index = 0;
                 FamilyInstance next = null;
-                foreach (MEPSystem mep in ark.systems)
-                {
-                    FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHTOUTPUT").FirstOrDefault();
+            foreach (MEPSystem mep in ark.systems)
+            {
+                FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHTOUTPUT").FirstOrDefault();
                 Transaction trans = new Transaction(doc);
                 trans.Start("Помещен на рисунок");
-                    next=doc.Create.NewFamilyInstance(new XYZ(point.X, point.Y-index*len*10, 0), famToPlace, view);
+                next = doc.Create.NewFamilyInstance(new XYZ(point.X, point.Y - index * len * 10, 0), famToPlace, view);
                 trans.Commit();
                 trans.Start("добавление параметров");
-                    next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
-                trans.Commit();
-                trans.Start("добавление параметров");
+                next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
+                //trans.Commit();
+                //trans.Start("добавление параметров");
                 next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.Name));
                 trans.Commit();
+                DrawSensors(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
                 len = next.LookupParameter("Ширина").AsDouble();
                
-                ++index;
-
+                 ++index;
             }
-            
-            //расстановка параметров
-            //добавлегте 
+        }
+        void DrawSensors(XYZ point, MEPSystem mep, int ark, ViewDrafting view, Document doc)
+        {
+            int Dim = 0;
+            int Hand= 0;
+           
+            foreach(Element e in mep.Elements)
+            {
+                if (e.Name.Contains("дым"))
+                {
+                    
+                    ++Dim;
+                }
+                if (e.Name.Contains("ИПР"))
+                {
+                    ++Hand;
+                }
+            }
+            if (Dim > 0)
+            {
+                if (Dim == 1) { point = drawOne(doc, view, true, 1,Double.Parse(mep.Name), ark, point); }
+                if (Dim == 2) { point = drawTwo(doc, view, true, Double.Parse(mep.Name), ark, point); }
+                if (Dim > 2) { point = drawMore(doc, view, true, Dim, Double.Parse(mep.Name), ark, point); }
+            }
+            if (Hand > 0) {
+                if (Dim > 0)
+                {
+                    geometry.AddLines(doc,view,geometry.ConnectLinesByPoints(new List<XYZ> { point, new XYZ(point.X + 0.5, point.Y, 0) }));
+                    point = new XYZ(point.X + 0.5, point.Y, 0);
+                }
+                //нарисовать соединение
+                if (Hand == 1) { point = drawOne(doc, view, false, 1, Double.Parse(mep.Name), ark, point); }
+                if (Hand == 2) { point = drawTwo(doc, view, false, Double.Parse(mep.Name), ark, point); }
+                if (Hand >2) { point = drawMore(doc, view, false, Hand, Double.Parse(mep.Name), ark, point); }
+            }
 
+        }
+        XYZ drawOne(Document doc,ViewDrafting view, bool type,int count,double shleif,int ark,XYZ start)
+        {
+            
+            FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => type? x.Name == "BTH":x.Name=="BTM").FirstOrDefault();
+            Transaction trans = new Transaction(doc);
+            trans.Start("Помещен на рисунок");
+            FamilyInstance sensor=doc.Create.NewFamilyInstance(start, famToPlace, view);
+            trans.Commit();
+            trans.Start("Помещен на рисунок");
+            sensor.LookupParameter("ark").Set(ark);
+            sensor.LookupParameter("нпп").Set(count);
+            sensor.LookupParameter("шлейф").Set((Int32)shleif);
+            trans.Commit();
+            return new XYZ(start.X + sensor.Symbol.LookupParameter("Ширина").AsDouble() * 10,start.Y,0); 
+        }
+        XYZ drawTwo(Document doc, ViewDrafting view, bool type, double shleif, int ark, XYZ start)
+        {
+            XYZ lineStart = drawOne(doc,view,type,1,shleif,ark,start);
+            XYZ lineEnd= new XYZ(lineStart.X+0.5,lineStart.Y,0);
+
+            geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { lineStart,lineEnd}));
+           return lineStart = drawOne(doc, view, type, 2, shleif, ark, lineEnd);
+
+        }
+        XYZ drawMore(Document doc, ViewDrafting view, bool type,int count,double shleif, int ark, XYZ start)
+        {
+            XYZ lineStart = drawOne(doc, view, type, 1, shleif, ark, start);
+            XYZ lineEnd = new XYZ(lineStart.X + 0.5, lineStart.Y, 0);
+            geometry.AddDottedLine(lineStart,lineEnd,doc,view);
+            //geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { lineStart, lineEnd }));
+            return lineStart = drawOne(doc, view, type , count, shleif, ark, lineEnd);
         }
         public Result Execute(
       ExternalCommandData commandData,
