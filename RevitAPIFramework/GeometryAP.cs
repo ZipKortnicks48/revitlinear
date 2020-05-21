@@ -15,7 +15,6 @@ namespace RevitAPIFramework
             {
                lines.Add(Line.CreateBound(points[i], points[i+1]));
             }
-            
             return lines;
         }
         public void AddLines(Document doc,ViewDrafting view,List<Line>lines)
@@ -43,9 +42,7 @@ namespace RevitAPIFramework
                 DetailCurve l = doc.Create.NewDetailCurve(vd, Line.CreateBound(start, end));
                 l.LineStyle = style ;
                 t.Commit();
-            }
-            
-          }
-                    
+            }    
+          }       
     }
 }

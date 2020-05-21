@@ -18,12 +18,15 @@ namespace RevitAPIFramework
         public string filename;
         public string filepath;
         public string mark;
+        public int countShleifs;
         public ARKModule(string _id, int _index, FamilyInstance _model)
         {
             id = _id;
             index = _index;
             revitModule = _model;
             systems = new List<MEPSystem>();
+            
+
         }
         public string getFullName()
         {
@@ -41,6 +44,11 @@ namespace RevitAPIFramework
         {
             filepath = s;
         }
+        public int getCountShleifs()
+        {
+            return countShleifs;
+        }
+      
       
     }
 }

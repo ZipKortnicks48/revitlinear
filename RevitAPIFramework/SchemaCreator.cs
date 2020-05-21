@@ -27,7 +27,7 @@ namespace RevitAPIFramework
         public List<ElementId> drawingviews = new List<ElementId>();
         public List<ElementId> arkmoduleIds = new List<ElementId>();
         public Loader loader=new Loader();
-        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa" }; 
+        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa" }; 
         void getBasEquipments(Document doc)
         {
 
@@ -203,9 +203,68 @@ namespace RevitAPIFramework
                 trans.Commit();
                 DrawSensors(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
                 len = next.LookupParameter("Ширина").AsDouble();
-               
                  ++index;
             }
+            if (ark.systems.Count <= ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger())
+            {
+                DrawRemain(new XYZ(point.X, point.Y - (index * len * 10)+0.08, 0),doc,view, ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger(),ark);
+            }
+            else
+            {
+                throw new Exception("Ошибка! Количество шлейфов в выбранном семействе меньше, чем в Revit-модели!");
+            }
+        }
+        void DrawRemain(XYZ start, Document doc, ViewDrafting view, int last, ARKModule ark) {
+            if (last - ark.systems.Count > 3)//изменить для разрыва
+            {
+                Transaction trans = new Transaction(doc);
+                trans.Start("Помещен на рисунок");
+                FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "GAP").FirstOrDefault();
+                FamilySymbol emptyOutput = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHEMPTY").FirstOrDefault();
+
+                FamilyInstance gap = doc.Create.NewFamilyInstance(start, famToPlace, view);//разрыв
+                double gapHeight = gap.Symbol.LookupParameter("Внутренняя высота").AsDouble();
+                FilteredElementCollector collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
+                List<AnnotationSymbolType> l = (from e in collector.ToElements() where e is AnnotationSymbolType select e as AnnotationSymbolType).ToList();
+                double outputHeight = 1;
+                foreach (AnnotationSymbolType at in l)
+                {
+                    if (at.FamilyName == "ARKRIGHEMPTY")
+                    {
+                        outputHeight = at.LookupParameter("Ширина").AsDouble();
+                    }
+                }
+
+                start = new XYZ(start.X, start.Y - gapHeight * 10 - outputHeight * 10 + 0.08, 0);
+
+                FamilyInstance next = doc.Create.NewFamilyInstance(start, emptyOutput, view);
+                next.LookupParameter("номер шлейфа").Set(last - 4);
+                next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
+                for (int i = last - 3; i <= last; ++i)
+                {
+                    double height = next.Symbol.LookupParameter("Ширина").AsDouble();
+                    start = new XYZ(start.X, start.Y - height * 10, 0);
+                    next = doc.Create.NewFamilyInstance(start, emptyOutput, view);
+                    next.LookupParameter("номер шлейфа").Set(i);
+                    next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
+                }
+                trans.Commit();
+            }
+            else {
+                FamilySymbol emptyOutput = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHEMPTY").FirstOrDefault();
+                start = new XYZ(start.X, start.Y - 0.08, 0);
+                Transaction trans = new Transaction(doc);
+                trans.Start("Помещен на рисунок");
+                for (int i= ark.systems.Count+1;i<= last;i++) {  
+                    FamilyInstance next = doc.Create.NewFamilyInstance(start, emptyOutput, view);
+                    next.LookupParameter("номер шлейфа").Set(i);
+                    next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3))); 
+                    double height = next.Symbol.LookupParameter("Ширина").AsDouble();
+                    start = new XYZ(start.X, start.Y - height * 10, 0);
+                }
+                trans.Commit();
+            }
+
         }
         void DrawSensors(XYZ point, MEPSystem mep, int ark, ViewDrafting view, Document doc)
         {
