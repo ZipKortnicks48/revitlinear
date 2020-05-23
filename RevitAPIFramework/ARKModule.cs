@@ -15,15 +15,20 @@ namespace RevitAPIFramework
         public FamilyInstance revitModule;
         public FamilySymbol revitSymbol;
         public List<MEPSystem> systems;
+        public FamilyInstance equipment;
         public string filename;
         public string filepath;
         public string mark;
         public int countShleifs;
+        private TableCreator tableCreator;
+        private ViewDrafting vd;
+       
         public ARKModule(string _id, int _index, FamilyInstance _model)
         {
             id = _id;
             index = _index;
             revitModule = _model;
+            equipment = _model;
             systems = new List<MEPSystem>();
             
 
@@ -48,7 +53,19 @@ namespace RevitAPIFramework
         {
             return countShleifs;
         }
-      
+        public void setVD(ViewDrafting v)
+        {
+            vd = v;
+        }
+        public ViewDrafting getVD()
+        {
+            return vd;
+        }
+        public void createTable(Document doc, XYZ start)
+        {
+            tableCreator = new TableCreator(this,start);
+            tableCreator.CreateTable(doc);
+        }
       
     }
 }

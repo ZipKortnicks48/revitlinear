@@ -27,7 +27,7 @@ namespace RevitAPIFramework
         public List<ElementId> drawingviews = new List<ElementId>();
         public List<ElementId> arkmoduleIds = new List<ElementId>();
         public Loader loader=new Loader();
-        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa" }; 
+        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa" }; 
         void getBasEquipments(Document doc)
         {
 
@@ -77,12 +77,6 @@ namespace RevitAPIFramework
                 if (null == family)
                 {
                     string FamilyPath = module.filepath;
-                    /*using (Transaction tx = new Transaction(doc))
-                    {
-                        tx.Start("Загрузка семейства");
-                        doc.LoadFamily(FamilyPath, out family);
-                        tx.Commit();
-                    }*/
                     loader.LoadFamilyIntoProject(FamilyPath,doc);
                 }
             }
@@ -106,6 +100,7 @@ namespace RevitAPIFramework
                 Transaction trans = new Transaction(doc);
                 trans.Start("Отрисовка");
                 ViewDrafting vd = ViewDrafting.Create(doc, id);
+                b.setVD(vd);
                 ElementId viewId = vd.Id;
                 drawingviews.Add(viewId);
                 famToPlace = collector.Cast<FamilySymbol>().Where(x => x.Name == b.filename).First();
@@ -120,7 +115,10 @@ namespace RevitAPIFramework
 
             DrawLines(doc);
 
-            
+            foreach (ARKModule b in ARKBLocks)
+            {
+                b.createTable(doc, new XYZ(10, 3, 0));
+            }
             
 
         }
@@ -197,8 +195,6 @@ namespace RevitAPIFramework
                 trans.Commit();
                 trans.Start("добавление параметров");
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
-                //trans.Commit();
-                //trans.Start("добавление параметров");
                 next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.Name));
                 trans.Commit();
                 DrawSensors(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
