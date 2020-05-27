@@ -11,6 +11,8 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB.Electrical;
 using System.Text;
 using RevitAPIFramework;
+using System.Linq.Expressions;
+using System.Windows.Forms;
 
 namespace RevitAPIFramework
 {
@@ -51,8 +53,6 @@ namespace RevitAPIFramework
         public bool SaveEveryARKBlockFamily(List<ARKModule> am)
         {
             this.ARKBLocks = am;
-
-
             return true;
         }
 
@@ -158,31 +158,34 @@ namespace RevitAPIFramework
         ref string message,
         ElementSet elements)
         {
-            //Получение объектов приложения и документа
-            UIApplication uiApp = commandData.Application;
-            Document doc = uiApp.ActiveUIDocument.Document;
-            this.getBasEquipments(doc);
-            //TraverseSystems(doc);
-            FilteredElementCollector collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
-            List<AnnotationSymbolType> l = new List<AnnotationSymbolType>();
-            l = (from e in collector.ToElements() where e is AnnotationSymbolType select e as AnnotationSymbolType).ToList();
-            /*if (l.Any(e=>e.FamilyName=="ark-module-1"))
-                { 
-                Console.WriteLine("good");
-                }*/
-            foreach (AnnotationSymbolType at in l)
+            try
             {
-                if (at.FamilyName == "ark-module-1")
-                {
-                    Family f = at.Family;
-                    Document famDoc = doc.EditFamily(at.Family);
-
-                    TaskDialog.Show("Family PathName", famDoc.PathName);
+                //Получение объектов приложения и документа
+                UIApplication uiApp = commandData.Application;
+                Document doc = uiApp.ActiveUIDocument.Document;
+                this.getBasEquipments(doc);
+                //TraverseSystems(doc);
+                FilteredElementCollector collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
+                List<AnnotationSymbolType> l = new List<AnnotationSymbolType>();
+                l = (from e in collector.ToElements() where e is AnnotationSymbolType select e as AnnotationSymbolType).ToList();
+                /*if (l.Any(e=>e.FamilyName=="ark-module-1"))
+                    { 
                     Console.WriteLine("good");
-                }
-            }
-            return Result.Succeeded;
-        }
+                    }*/
+                foreach (AnnotationSymbolType at in l)
+                {
+                    if (at.FamilyName == "ark-module-1")
+                    {
+                        Family f = at.Family;
+                        Document famDoc = doc.EditFamily(at.Family);
 
+                        //TaskDialog.Show("Family PathName", famDoc.PathName);
+                        Console.WriteLine("good");
+                    }
+                }
+                return Result.Succeeded;
+            }
+            catch { MessageBox.Show("Ошибка"); return Result.Succeeded; }
+        } 
     }
 }

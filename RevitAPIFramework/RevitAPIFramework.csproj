@@ -52,6 +52,8 @@
   <ItemGroup>
     <Compile Include="App.cs" />
     <Compile Include="ARKModule.cs" />
+    <Compile Include="SettingSections.cs" />
+    <Compile Include="SettingSectionsCreator.cs" />
     <Compile Include="starter.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>

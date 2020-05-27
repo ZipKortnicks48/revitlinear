@@ -35,7 +35,7 @@ namespace RevitAPIFramework
         }
         public string getFullName()
         {
-            return id + " " + revitModule.Name;
+            return "(" + equipment.LookupParameter("Марка").AsString() + ") " + revitModule.Name;
         }
         public void addSystem(MEPSystem s)
         {

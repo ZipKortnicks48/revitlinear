@@ -12,7 +12,7 @@ using Autodesk.Revit.DB.Electrical;
 using System.Text;
 using RevitAPIFramework;
 using System.IO;
-
+using System.Windows.Forms;
 
 namespace RevitAPIFramework
 {
@@ -20,12 +20,12 @@ namespace RevitAPIFramework
     {
          public void LoadFamilyIntoProject(string file_path, Document doc)
         {
-            using (Transaction tx = new Transaction(doc))
-            {
-                tx.Start("Загрузка семейства");
-                doc.LoadFamily(file_path);
-                tx.Commit();
-            }
+                using (Transaction tx = new Transaction(doc))
+                {
+                    tx.Start("Загрузка семейства");
+                    doc.LoadFamily(file_path);
+                    tx.Commit();
+                }
         }
         public void DrawFamilyByCoordinate()
         {

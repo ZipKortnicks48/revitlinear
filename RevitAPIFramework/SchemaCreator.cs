@@ -13,6 +13,7 @@ using System.Text;
 using RevitAPIFramework;
 using System.IO;
 using System.Data.SqlTypes;
+using System.Windows.Forms;
 
 namespace RevitAPIFramework
 {
@@ -27,7 +28,8 @@ namespace RevitAPIFramework
         public List<ElementId> drawingviews = new List<ElementId>();
         public List<ElementId> arkmoduleIds = new List<ElementId>();
         public Loader loader=new Loader();
-        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa" }; 
+        public SettingSectionsCreator settings = new SettingSectionsCreator();
+        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa", "INTOCABIN.rfa"  }; 
         void getBasEquipments(Document doc)
         {
 
@@ -91,6 +93,12 @@ namespace RevitAPIFramework
         }
         void DrawAll(Document doc)
         {
+            foreach (string s in staticFamilies)
+            {
+                string file_path = File.ReadAllText("settings.set");
+                file_path += "\\static\\" + s;
+                loader.LoadFamilyIntoProject(file_path, doc);
+            }
             FilteredElementCollector collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
             foreach (ARKModule b in ARKBLocks)
             {
@@ -151,28 +159,49 @@ namespace RevitAPIFramework
             
             foreach (ElementId vd in drawingviews)
             {
-                
+                string[] s = File.ReadAllLines("intocabin.set");
+
                 ViewDrafting view = new FilteredElementCollector(doc).OfClass(typeof(ViewDrafting)).Cast<ViewDrafting>().Where(x => x.Id==vd).FirstOrDefault();
+
+                FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "INTOCABIN").FirstOrDefault();
+                
+
                 FamilyInstance ark  = new FilteredElementCollector(doc, vd).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x=>arkmoduleIds.Contains(x.Id)).FirstOrDefault();
                 List<XYZ> points = new List<XYZ>();
                 points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 , ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2, 0));
                 points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
-                points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 + 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
+                Transaction t = new Transaction(doc);
+                t.Start("На вид");
+                FamilyInstance ann = doc.Create.NewFamilyInstance(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0),
+                    famToPlace,view);
+                ann.LookupParameter("Длина").Set(Int32.Parse(s[1]));
+                ann.Symbol.LookupParameter("Сечение").Set(s[2]);
+                ann.LookupParameter("Тип").Set(s[0]);
+                t.Commit();
+                points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 + 1, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
                 geometry.AddLines(doc,view,geometry.ConnectLinesByPoints(points));
                 DrawShleifs(points[2],doc,view);
             }
             
         }
-        
+        private double getNormalCount(double c)
+        {
+            int count = Convert.ToInt32(c);
+            if (count % 5 == 0)
+            { return Convert.ToDouble(count); }
+            else { count += 5 - (count % 5); return Convert.ToDouble(count); }
+        }
+
         void DrawShleifs(XYZ point, Document doc, ViewDrafting view)
         {
-            foreach (string s in staticFamilies)
+            /*foreach (string s in staticFamilies)
             {
                 string file_path = File.ReadAllText("settings.set");
                 file_path += "\\static\\"+s;
                 loader.LoadFamilyIntoProject(file_path, doc);
-            }
+            }*/
             //соответствие арк
+            settings.loadSettings();
             ARKModule ark = null;
             FamilyInstance f = new FilteredElementCollector(doc,view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x => arkmoduleIds.Contains(x.Id)).FirstOrDefault();
             foreach (ARKModule module in ARKBLocks)
@@ -196,8 +225,12 @@ namespace RevitAPIFramework
                 trans.Start("добавление параметров");
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
                 next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.Name));
+                next.LookupParameter("Длина кабеля").Set(getNormalCount(mep.LookupParameter("Длина").AsDouble()));
+                SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
+                next.LookupParameter("Вид кабеля").Set(s.GetStrForDrawing());
                 trans.Commit();
                 DrawSensors(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
+                
                 len = next.LookupParameter("Ширина").AsDouble();
                  ++index;
             }
@@ -335,14 +368,16 @@ namespace RevitAPIFramework
       ref string message,
       ElementSet elements)
         {
-            //Получение объектов приложения и документа
-            UIApplication uiApp = commandData.Application;
-            Document doc = uiApp.ActiveUIDocument.Document;
-            this.getBasEquipments(doc);//собираем в класс
-            this.getPathes();
-            this.loadFamilies(doc);
-            this.DrawAll(doc);//отрисовка
-            
+           // try
+            //{ //Получение объектов приложения и документа
+                UIApplication uiApp = commandData.Application;
+                Document doc = uiApp.ActiveUIDocument.Document;
+                this.getBasEquipments(doc);//собираем в класс
+                this.getPathes();
+                this.loadFamilies(doc);
+                this.DrawAll(doc);//отрисовка
+           /* }
+            catch (Exception ex) { MessageBox.Show("Ошибка!"); }*/
             return Result.Succeeded;
         }
     }

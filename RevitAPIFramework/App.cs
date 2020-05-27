@@ -15,6 +15,8 @@ using Autodesk.Revit.DB.Electrical;
 using RevitAPIFramework;
 using System.Reflection;
 using System.Windows.Media.Imaging;
+using System.Security.Principal;
+using System.Windows.Forms;
 
 namespace RevitAPIFramework
 {
@@ -22,40 +24,45 @@ namespace RevitAPIFramework
     {
         public Result OnStartup(UIControlledApplication a)
         {
-            
+
             // Method to add Tab and Panel 
-            RibbonPanel panel = ribbonPanel(a);
-            // Reflection to look for this assembly path 
-            string thisAssemblyPath = Assembly.GetExecutingAssembly().Location;
-            // Add button to panel
-            PushButton button = panel.AddItem(new PushButtonData("Button", "Настройки", thisAssemblyPath, "RevitAPIFramework.starter")) as PushButton;
-            // Add tool tip 
-            button.ToolTip = "Задайте настройки семейств и рабочей папки.";
-            // Reflection of path to image 
-            var globePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "settings.jpg");
-            Uri uriImage = new Uri(globePath);
-            // Apply image to bitmap
-            BitmapImage largeImage = new BitmapImage(uriImage);
-            // Apply image to button 
-            button.LargeImage = largeImage;
+            try
+            {
+                RibbonPanel panel = ribbonPanel(a);
+                // Reflection to look for this assembly path 
+                string thisAssemblyPath = Assembly.GetExecutingAssembly().Location;
+                // Add button to panel
+                PushButton button = panel.AddItem(new PushButtonData("Button", "Настройки", thisAssemblyPath, "RevitAPIFramework.starter")) as PushButton;
+                // Add tool tip 
+                button.ToolTip = "Задайте настройки семейств и рабочей папки.";
+                // Reflection of path to image 
+                var globePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "settings.jpg");
+                Uri uriImage = new Uri(globePath);
+                // Apply image to bitmap
+                BitmapImage largeImage = new BitmapImage(uriImage);
+                // Apply image to button 
+                button.LargeImage = largeImage;
 
-            // Add button to panel
-            PushButton button1 = panel.AddItem(new PushButtonData("Button1", "Построить схемы", thisAssemblyPath, "RevitAPIFramework.SchemaCreator")) as PushButton;
-            // Add tool tip 
-            button1.ToolTip = "Запуск построения схем.";
-            // Reflection of path to image 
-            var globePath1 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "play.jpg");
-            Uri uriImage1 = new Uri(globePath1);
-            // Apply image to bitmap
-            BitmapImage largeImage1 = new BitmapImage(uriImage1);
-            // Apply image to button 
-            button1.LargeImage = largeImage1;
+                // Add button to panel
+                PushButton button1 = panel.AddItem(new PushButtonData("Button1", "Построить схемы", thisAssemblyPath, "RevitAPIFramework.SchemaCreator")) as PushButton;
+                // Add tool tip 
+                button1.ToolTip = "Запуск построения схем.";
+                // Reflection of path to image 
+                var globePath1 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "play.jpg");
+                Uri uriImage1 = new Uri(globePath1);
+                // Apply image to bitmap
+                BitmapImage largeImage1 = new BitmapImage(uriImage1);
+                // Apply image to button 
+                button1.LargeImage = largeImage1;
 
-            a.ApplicationClosing += a_ApplicationClosing;
+                a.ApplicationClosing += a_ApplicationClosing;
 
-            //Set Application to Idling
-            a.Idling += a_Idling;
-
+                //Set Application to Idling
+                a.Idling += a_Idling;
+            }
+            catch (Exception e) {
+                MessageBox.Show(e.ToString());
+            }
             return Result.Succeeded;
         }
 
