@@ -29,7 +29,7 @@ namespace RevitAPIFramework
         public List<ElementId> arkmoduleIds = new List<ElementId>();
         public Loader loader=new Loader();
         public SettingSectionsCreator settings = new SettingSectionsCreator();
-        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa", "INTOCABIN.rfa"  }; 
+        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa", "INTOCABIN.rfa", "ARKRIGHTOUTPUTOP.rfa", "BIA.rfa", "BIAS.rfa","BIAL.rfa","SHLEIF.rfa" }; 
         void getBasEquipments(Document doc)
         {
 
@@ -89,7 +89,12 @@ namespace RevitAPIFramework
         //Добавление системы шлейфа к блоку
         void findAndAddSystem(MEPSystem system)
         {
-            ARKBLocks.ForEach(e => { if (e.id == system.BaseEquipment.Id.ToString()) { e.addSystem(system); } });
+            ARKBLocks.ForEach(e => { 
+                if (e.id == system.BaseEquipment.Id.ToString()) { 
+                    if (system.LookupParameter("Комментарии").AsString()==null) e.addSystem(system); else e.addAlertSystem(system);
+                } 
+            }
+            );
         }
         void DrawAll(Document doc)
         {
@@ -180,9 +185,43 @@ namespace RevitAPIFramework
                 t.Commit();
                 points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 + 1, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
                 geometry.AddLines(doc,view,geometry.ConnectLinesByPoints(points));
-                DrawShleifs(points[2],doc,view);
+                XYZ nextp=DrawShleifsAlert(points[2], doc, view);
+                DrawShleifs(nextp,doc,view);
+                drawLeftShleifs(doc,view);
+                //DrawShleifs(points[2],doc,view);
             }
             
+        }
+        private XYZ drawLeftShleifs(Document doc, ViewDrafting view)
+        {
+            XYZ point = null;
+            ARKModule ark = null;
+            FamilyInstance f = new FilteredElementCollector(doc, view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(r => arkmoduleIds.Contains(r.Id)).FirstOrDefault();
+            foreach (ARKModule module in ARKBLocks)
+            {
+                if (module.revitModule.Id == f.Id)
+                {
+                    ark = module;
+                }
+            }
+            double index = (Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())+1)*2-1;
+            int arkNum = ark.revitModule.LookupParameter("ark-module").AsInteger();
+            FamilyInstance next=null;
+            double x = -ark.revitModule.Symbol.LookupParameter("Ширина").AsDouble()*10 / 2;
+            double y = ark.revitModule.Symbol.LookupParameter("Высота").AsDouble()*10/2-ark.revitModule.Symbol.LookupParameter("До шлейфа").AsDouble() * 10;
+            point = new XYZ(x,y,1);
+            FamilySymbol famToPlace= new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(r => r.Name == "SHLEIF").FirstOrDefault();
+            foreach (MEPSystem s in ark.alertSystems) {
+                Transaction t = new Transaction(doc);
+                t.Start("Боковые шлейфы");
+                next = doc.Create.NewFamilyInstance(point, famToPlace, view);
+                next.LookupParameter("num-ark").Set(arkNum);
+                next.LookupParameter("num-plus").Set(index);
+                point = new XYZ(point.X, point.Y - next.Symbol.LookupParameter("Высота").AsDouble() * 10, 0); 
+                index += 2;
+                t.Commit();
+            }
+            return point;
         }
         private double getNormalCount(double c)
         {
@@ -191,17 +230,50 @@ namespace RevitAPIFramework
             { return Convert.ToDouble(count); }
             else { count += 5 - (count % 5); return Convert.ToDouble(count); }
         }
-
-        void DrawShleifs(XYZ point, Document doc, ViewDrafting view)
+        XYZ DrawShleifsAlert(XYZ point, Document doc, ViewDrafting view)
         {
-            /*foreach (string s in staticFamilies)
-            {
-                string file_path = File.ReadAllText("settings.set");
-                file_path += "\\static\\"+s;
-                loader.LoadFamilyIntoProject(file_path, doc);
-            }*/
             //соответствие арк
             settings.loadSettings();
+            XYZ pointToReturn = point;
+            ARKModule ark = null;
+            FamilyInstance f = new FilteredElementCollector(doc, view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x => arkmoduleIds.Contains(x.Id)).FirstOrDefault();
+            foreach (ARKModule module in ARKBLocks)
+            {
+                if (module.revitModule.Id == f.Id)
+                {
+                    ark = module;
+                }
+            }
+            //добавление экземпляров на виды по точке
+            double len = 0;
+            int index = 0;
+            FamilyInstance next = null;
+            foreach (MEPSystem mep in ark.alertSystems)
+            {
+                FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHTOUTPUTOP").FirstOrDefault();
+                Transaction trans = new Transaction(doc);
+                trans.Start("Помещен на рисунок");
+                pointToReturn = new XYZ(point.X, point.Y - index * len * 10-index*0.2, 0);
+                next = doc.Create.NewFamilyInstance(pointToReturn, famToPlace, view);
+                trans.Commit();
+                trans.Start("добавление параметров");
+                next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
+                next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0,1))/*+Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())*/);//ввести новый параметр
+                next.LookupParameter("Длина кабеля").Set(getNormalCount(mep.LookupParameter("Длина").AsDouble()));
+                next.Symbol.LookupParameter("type").Set("ОП");
+                SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
+                next.LookupParameter("Вид кабеля").Set(s.GetStrForDrawing());
+                trans.Commit();
+                DrawSensorsAlert(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10 - index * 0.2, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
+                len = next.LookupParameter("Ширина").AsDouble();
+                ++index;
+            }
+            return new XYZ(point.X, point.Y - index * len * 10 - index * 0.2, 0);
+        }
+        void DrawShleifs(XYZ point, Document doc, ViewDrafting view)
+        {
+            //соответствие арк
+            //settings.loadSettings();
             ARKModule ark = null;
             FamilyInstance f = new FilteredElementCollector(doc,view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x => arkmoduleIds.Contains(x.Id)).FirstOrDefault();
             foreach (ARKModule module in ARKBLocks)
@@ -362,6 +434,98 @@ namespace RevitAPIFramework
             geometry.AddDottedLine(lineStart,lineEnd,doc,view);
             //geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { lineStart, lineEnd }));
             return lineStart = drawOne(doc, view, type , count, shleif, ark, lineEnd);
+        }
+
+        //для оповещателей
+        void DrawSensorsAlert(XYZ point, MEPSystem mep, int ark, ViewDrafting view, Document doc)
+        {
+            int bia = 0;
+            int bias = 0;
+            int bial = 0;
+            string biaMes="";
+            string bialMes = "";
+            foreach (Element e in mep.Elements)
+            {
+                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("комб"))
+                {
+                    try { biaMes = e.Name.Split('"')[1]; } catch { };
+                    ++bia;
+                }
+                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("свет"))
+                {
+                    try { bialMes = e.Name.Split('"')[1]; } catch { };
+                    ++bial;
+                }
+                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("звук"))
+                {
+                    
+                    ++bias;
+                }
+            }
+            if (bial > 0)
+            {
+                if (bial == 1) { point = drawOneAlert(doc, view, "BIAL", 1, Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point, bialMes); }
+                if (bial == 2) { point = drawTwoAlert(doc, view, "BIAL", Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point, bialMes); }
+                if (bial > 2) { point = drawMoreAlert(doc, view, "BIAL", bial, Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point, bialMes); }
+            }
+            if (bias > 0)
+            {
+                if (bial > 0)
+                {
+                    geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { point, new XYZ(point.X + 0.5, point.Y, 0) }));
+                    point = new XYZ(point.X + 0.5, point.Y, 0);
+                }
+                //нарисовать соединение
+                if (bias == 1) { point = drawOneAlert(doc, view, "BIAS", 1, Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point,""); }
+                if (bias == 2) { point = drawTwoAlert(doc, view, "BIAS", Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point, ""); }
+                if (bias > 2) { point = drawMoreAlert(doc, view, "BIAS", bias, Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point, ""); }
+            }
+            if (bia > 0)
+            {
+                if (bias > 0)
+                {
+                    geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { point, new XYZ(point.X + 0.5, point.Y, 0) }));
+                    point = new XYZ(point.X + 0.5, point.Y, 0);
+                }
+                //нарисовать соединение
+                if (bia == 1) { point = drawOneAlert(doc, view, "BIA", 1, Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point, biaMes); }
+                if (bia == 2) { point = drawTwoAlert(doc, view, "BIA", Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point,biaMes); }
+                if (bia > 2) { point = drawMoreAlert(doc, view, "BIA", bias, Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0, 1)), ark, point,biaMes); }
+            }
+
+        }
+        XYZ drawOneAlert(Document doc, ViewDrafting view, string type, int count, double shleif, int ark, XYZ start, string txt)
+        {
+
+            FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x =>  x.Name == type).FirstOrDefault();
+            Transaction trans = new Transaction(doc);
+            trans.Start("Помещен на рисунок");
+            FamilyInstance sensor = doc.Create.NewFamilyInstance(start, famToPlace, view);
+            trans.Commit();
+            trans.Start("Помещен на рисунок");
+            sensor.LookupParameter("text").Set(txt);
+            sensor.LookupParameter("ark").Set(ark);
+            sensor.LookupParameter("нпп").Set(count);
+            sensor.LookupParameter("шлейф").Set((Int32)shleif);
+            trans.Commit();
+            return new XYZ(start.X + sensor.Symbol.LookupParameter("Ширина").AsDouble() * 10, start.Y, 0);
+        }
+        XYZ drawTwoAlert(Document doc, ViewDrafting view, string type, double shleif, int ark, XYZ start,string txt)
+        {
+            XYZ lineStart = drawOneAlert(doc, view, type, 1, shleif, ark, start,txt);
+            XYZ lineEnd = new XYZ(lineStart.X + 0.5, lineStart.Y, 0);
+
+            geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { lineStart, lineEnd }));
+            return lineStart = drawOneAlert(doc, view, type, 2, shleif, ark, lineEnd,txt);
+
+        }
+        XYZ drawMoreAlert(Document doc, ViewDrafting view, string type, int count, double shleif, int ark, XYZ start,string txt)
+        {
+            XYZ lineStart = drawOneAlert(doc, view, type, 1, shleif, ark, start,txt);
+            XYZ lineEnd = new XYZ(lineStart.X + 0.5, lineStart.Y, 0);
+            geometry.AddDottedLine(lineStart, lineEnd, doc, view);
+            //geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(new List<XYZ> { lineStart, lineEnd }));
+            return lineStart = drawOneAlert(doc, view, type, count, shleif, ark, lineEnd,txt);
         }
         public Result Execute(
       ExternalCommandData commandData,

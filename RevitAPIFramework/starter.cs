@@ -41,9 +41,12 @@ namespace RevitAPIFramework
                 string sysId = system.BaseEquipment.Id.ToString();
                 if (!this.ARKBLocks.Any(element => element.id == sysId))
                 {
-                    ARKModule m = new ARKModule(sysId, i, system.BaseEquipment);
-                    ARKBLocks.Add(m);
+                   
+                        ARKModule m = new ARKModule(sysId, i, system.BaseEquipment);
+                        ARKBLocks.Add(m);
+                    
                 }
+                
                 findAndAddSystem(system);
 
             }
