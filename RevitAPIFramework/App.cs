@@ -37,7 +37,7 @@ namespace RevitAPIFramework
                 button.ToolTip = "Задайте настройки семейств и рабочей папки.";
                 // Reflection of path to image 
                 var globePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "settings.jpg");
-                Uri uriImage = new Uri(globePath);
+                Uri uriImage = new Uri(globePath, UriKind.Absolute);
                 // Apply image to bitmap
                 BitmapImage largeImage = new BitmapImage(uriImage);
                 // Apply image to button 
@@ -49,7 +49,7 @@ namespace RevitAPIFramework
                 button1.ToolTip = "Запуск построения схем.";
                 // Reflection of path to image 
                 var globePath1 = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "play.jpg");
-                Uri uriImage1 = new Uri(globePath1);
+                Uri uriImage1 = new Uri(globePath1, UriKind.Absolute);
                 // Apply image to bitmap
                 BitmapImage largeImage1 = new BitmapImage(uriImage1);
                 // Apply image to button 

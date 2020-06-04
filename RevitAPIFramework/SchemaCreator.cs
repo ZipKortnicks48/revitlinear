@@ -29,6 +29,9 @@ namespace RevitAPIFramework
         public List<ElementId> arkmoduleIds = new List<ElementId>();
         public Loader loader=new Loader();
         public SettingSectionsCreator settings = new SettingSectionsCreator();
+        public List<XYZ> mainPoints = new List<XYZ>();
+        public List<XYZ> mainTirePoints = new List<XYZ>();
+
         public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa", "INTOCABIN.rfa", "ARKRIGHTOUTPUTOP.rfa", "BIA.rfa", "BIAS.rfa","BIAL.rfa","SHLEIF.rfa" }; 
         void getBasEquipments(Document doc)
         {
@@ -165,16 +168,21 @@ namespace RevitAPIFramework
             foreach (ElementId vd in drawingviews)
             {
                 string[] s = File.ReadAllLines("intocabin.set");
-
+                ARKModule block=null;
                 ViewDrafting view = new FilteredElementCollector(doc).OfClass(typeof(ViewDrafting)).Cast<ViewDrafting>().Where(x => x.Id==vd).FirstOrDefault();
 
                 FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "INTOCABIN").FirstOrDefault();
                 
 
                 FamilyInstance ark  = new FilteredElementCollector(doc, vd).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x=>arkmoduleIds.Contains(x.Id)).FirstOrDefault();
+                foreach (ARKModule a in ARKBLocks) {
+                    if (a.revitModule.Id == ark.Id)
+                        block = a;
+                }
                 List<XYZ> points = new List<XYZ>();
                 points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2 , ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2, 0));
                 points.Add(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));
+                mainPoints.Add(points.Last()); ///добавление главной точки
                 Transaction t = new Transaction(doc);
                 t.Start("На вид");
                 FamilyInstance ann = doc.Create.NewFamilyInstance(new XYZ(ark.Symbol.LookupParameter("Ширина").AsDouble() * 10 / 2, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0),
@@ -187,7 +195,15 @@ namespace RevitAPIFramework
                 geometry.AddLines(doc,view,geometry.ConnectLinesByPoints(points));
                 XYZ nextp=DrawShleifsAlert(points[2], doc, view);
                 DrawShleifs(nextp,doc,view);
-                drawLeftShleifs(doc,view);
+                nextp=drawLeftShleifs(doc, view);
+                mainPoints.Add(new XYZ(nextp.X, ark.Symbol.LookupParameter("Высота").AsDouble() * 10 / 2 + 0.5, 0));//добавление главной точки
+                mainPoints.Add(nextp); ///добавление главной точки
+                if (block.alertSystems.Count > 0)
+                {
+                    List<Line> lines = geometry.ConnectLinesByPoints(mainPoints);
+                    geometry.AddLines(doc, view, lines);
+                }
+                mainPoints.Clear();
                 //DrawShleifs(points[2],doc,view);
             }
             
@@ -207,6 +223,7 @@ namespace RevitAPIFramework
             double index = (Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())+1)*2-1;
             int arkNum = ark.revitModule.LookupParameter("ark-module").AsInteger();
             FamilyInstance next=null;
+            double length = 0;
             double x = -ark.revitModule.Symbol.LookupParameter("Ширина").AsDouble()*10 / 2;
             double y = ark.revitModule.Symbol.LookupParameter("Высота").AsDouble()*10/2-ark.revitModule.Symbol.LookupParameter("До шлейфа").AsDouble() * 10;
             point = new XYZ(x,y,1);
@@ -217,11 +234,12 @@ namespace RevitAPIFramework
                 next = doc.Create.NewFamilyInstance(point, famToPlace, view);
                 next.LookupParameter("num-ark").Set(arkNum);
                 next.LookupParameter("num-plus").Set(index);
-                point = new XYZ(point.X, point.Y - next.Symbol.LookupParameter("Высота").AsDouble() * 10, 0); 
+                point = new XYZ(point.X, point.Y - next.Symbol.LookupParameter("Высота").AsDouble() * 10, 0);
+                length = next.Symbol.LookupParameter("Длина").AsDouble()*10;
                 index += 2;
                 t.Commit();
             }
-            return point;
+            return new XYZ(point.X-length,point.Y,0);
         }
         private double getNormalCount(double c)
         {
@@ -232,6 +250,7 @@ namespace RevitAPIFramework
         }
         XYZ DrawShleifsAlert(XYZ point, Document doc, ViewDrafting view)
         {
+            mainTirePoints.Add(new XYZ(point.X,point.Y+0.08,0));
             //соответствие арк
             settings.loadSettings();
             XYZ pointToReturn = point;
@@ -275,6 +294,7 @@ namespace RevitAPIFramework
             //соответствие арк
             //settings.loadSettings();
             ARKModule ark = null;
+            XYZ end = null;
             FamilyInstance f = new FilteredElementCollector(doc,view.Id).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(x => arkmoduleIds.Contains(x.Id)).FirstOrDefault();
             foreach (ARKModule module in ARKBLocks)
             {
@@ -302,20 +322,29 @@ namespace RevitAPIFramework
                 next.LookupParameter("Вид кабеля").Set(s.GetStrForDrawing());
                 trans.Commit();
                 DrawSensors(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
-                
+                end = new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10, 0);
+
+
+
                 len = next.LookupParameter("Ширина").AsDouble();
                  ++index;
             }
             if (ark.systems.Count <= ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger())
             {
-                DrawRemain(new XYZ(point.X, point.Y - (index * len * 10)+0.08, 0),doc,view, ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger(),ark);
+                end = DrawRemain(new XYZ(point.X, point.Y - (index * len * 10)+0.08, 0),doc,view, ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger(),ark);
+                
             }
             else
             {
                 throw new Exception("Ошибка! Количество шлейфов в выбранном семействе меньше, чем в Revit-модели!");
             }
+            mainTirePoints.Add(new XYZ(point.X, point.Y - index * len * 10, 0));
+            mainTirePoints.Add(new XYZ(end.X,end.Y-0.08,0));
+            geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(mainTirePoints));
+            mainTirePoints.Clear();
         }
-        void DrawRemain(XYZ start, Document doc, ViewDrafting view, int last, ARKModule ark) {
+        XYZ DrawRemain(XYZ start, Document doc, ViewDrafting view, int last, ARKModule ark) {
+            XYZ returnPoint=start;
             if (last - ark.systems.Count > 3)//изменить для разрыва
             {
                 Transaction trans = new Transaction(doc);
@@ -337,7 +366,6 @@ namespace RevitAPIFramework
                 }
 
                 start = new XYZ(start.X, start.Y - gapHeight * 10 - outputHeight * 10 + 0.08, 0);
-
                 FamilyInstance next = doc.Create.NewFamilyInstance(start, emptyOutput, view);
                 next.LookupParameter("номер шлейфа").Set(last - 4);
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
@@ -348,8 +376,9 @@ namespace RevitAPIFramework
                     next = doc.Create.NewFamilyInstance(start, emptyOutput, view);
                     next.LookupParameter("номер шлейфа").Set(i);
                     next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
+                    returnPoint = start;
                 }
-                trans.Commit();
+                trans.Commit();    
             }
             else {
                 FamilySymbol emptyOutput = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "ARKRIGHEMPTY").FirstOrDefault();
@@ -362,10 +391,11 @@ namespace RevitAPIFramework
                     next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3))); 
                     double height = next.Symbol.LookupParameter("Ширина").AsDouble();
                     start = new XYZ(start.X, start.Y - height * 10, 0);
+                    returnPoint = start;
                 }
                 trans.Commit();
             }
-
+            return returnPoint;
         }
         void DrawSensors(XYZ point, MEPSystem mep, int ark, ViewDrafting view, Document doc)
         {

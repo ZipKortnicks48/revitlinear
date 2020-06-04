@@ -105,18 +105,25 @@ namespace RevitAPIFramework
         //сохранение папки семейств, обновление настроек
         private void button2_Click(object sender, EventArgs e)
         {
-            using (var fbd = new FolderBrowserDialog())
+            try
             {
-                DialogResult result = fbd.ShowDialog();
-
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                using (var fbd = new FolderBrowserDialog())
                 {
-                    string path = "settings.set";
-                        string createText = fbd.SelectedPath; 
-                        File.WriteAllText(path, createText);                    
+                    DialogResult result = fbd.ShowDialog();
+
+                    if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        string path = "settings.set";
+                        string createText = fbd.SelectedPath;
+                        File.WriteAllText(path, createText);
+                    }
                 }
+                MessageBox.Show("Путь к папке семейств изменен. Для того, чтобы изменения вступили в силу - перезаупустите плагин");
             }
-            MessageBox.Show("Путь к папке семейств изменен. Для того, чтобы изменения вступили в силу - перезаупустите плагин");
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
         }
 
         private void groupBox2_Enter(object sender, EventArgs e)
@@ -143,10 +150,17 @@ namespace RevitAPIFramework
         }
         private double getNormalCount(double c)
         {
-            int count = Convert.ToInt32(c);
-            if (count % 5 == 0)
-            { return Convert.ToDouble(count); }
-            else { count += 5-(count % 5);return Convert.ToDouble(count); }
+            try
+            {
+                int count = Convert.ToInt32(c);
+                if (count % 5 == 0)
+                { return Convert.ToDouble(count); }
+                else { count += 5 - (count % 5); return Convert.ToDouble(count); }
+            }
+            catch (Exception ex) {
+                MessageBox.Show(ex.ToString());
+                return 0;
+            }
         }
         private double getNormalS(double c)
         {
@@ -175,39 +189,48 @@ namespace RevitAPIFramework
         }
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            comboBox1.Items.Clear();
-            int selectedind = listBox1.SelectedIndex;
-            ARKModule ark = blocks[selectedind];
-            MEPSystem mep=null;
-            foreach(MEPSystem m in ark.systems)
-            {
-                if (m.Name.Contains("1")) { mep = m; }
-            }
-            double len=getL(mep,ark.systems.Count);
-            len = getNormalCount(len);
-            double I = 0;
-            I = getI(mep);
-            label23.Text = len.ToString();
-            label24.Text = I.ToString();
-            
-            foreach (MEPSystem m in ark.systems)
-            {
-                string name = m.Name + "-й шлейф";
-                double s = getS(getI(mep), getL(m, ark.systems.Count));
-                comboBox1.Items.Add(name+": "+s.ToString()+"мм^2");
-            }
             try
             {
-                int set_index = settings.loadSettingByARK(listBox1.SelectedItem.ToString());
-                SettingSections set = settings.getByIndex(set_index);
-                string[] sections = set.section.Split('x');
-                textBox4.Text = set.mark;
-                textBox6.Text = sections[0];
-                textBox7.Text = sections[1];
-                textBox3.Text = sections[2];
+                comboBox1.Items.Clear();
+                int selectedind = listBox1.SelectedIndex;
+                ARKModule ark = blocks[selectedind];
+                MEPSystem mep = null;
+                foreach (MEPSystem m in ark.systems)
+                {
+                    if (m.Name.Contains("1")) { mep = m; }
+                }
+                double len = getL(mep, ark.systems.Count);
+                len = getNormalCount(len);
+                double I = 0;
+                I = getI(mep);
+                label23.Text = len.ToString();
+                label24.Text = I.ToString();
+
+                foreach (MEPSystem m in ark.systems)
+                {
+                    string name = m.Name + "-й шлейф";
+                    double s = getS(getI(mep), getL(m, ark.systems.Count));
+                    comboBox1.Items.Add(name + ": " + s.ToString() + "мм^2");
+                }
+                try
+                {
+                    int set_index = settings.loadSettingByARK(listBox1.SelectedItem.ToString());
+                    SettingSections set = settings.getByIndex(set_index);
+                    string[] sections = set.section.Split('x');
+                    textBox4.Text = set.mark;
+                    textBox6.Text = sections[0];
+                    textBox7.Text = sections[1];
+                    textBox3.Text = sections[2];
+                }
+                catch
+                {
+
+                }
             }
-            catch { 
-                
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+              
             }
         }
 
@@ -218,19 +241,28 @@ namespace RevitAPIFramework
 
         private void button5_Click(object sender, EventArgs e)
         {
-            int index=settings.loadSettingByARK(listBox1.SelectedItem.ToString());
-            if(index<settings.Count()) { settings.getByIndex(index).SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text); }
-            else{ 
-                SettingSections s = new SettingSections();
-                s.SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text);
-                settings.Add(s);
-            }
-            List<string> namesARK=new List<string>();
-            foreach (Object str in listBox1.Items)
+            try
             {
-                namesARK.Add(str.ToString());
+                int index = settings.loadSettingByARK(listBox1.SelectedItem.ToString());
+                if (index < settings.Count()) { settings.getByIndex(index).SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text); }
+                else
+                {
+                    SettingSections s = new SettingSections();
+                    s.SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text);
+                    settings.Add(s);
+                }
+                List<string> namesARK = new List<string>();
+                foreach (Object str in listBox1.Items)
+                {
+                    namesARK.Add(str.ToString());
+                }
+                settings.deleteIfNot(namesARK);
             }
-            settings.deleteIfNot(namesARK);
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+               
+            }
         }
     }
 }
