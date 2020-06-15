@@ -14,7 +14,7 @@ namespace RevitAPIFramework
 
         public SettingSectionsCreator() {  settings = new List<SettingSections>(); }
         public void loadSettings() {
-            string[] str = File.ReadAllLines("sections.set");
+            string[] str = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//sections.set");
             foreach(string s in str)
             {
                 string[] arrSet= s.Split('&');
@@ -40,7 +40,7 @@ namespace RevitAPIFramework
                 result[index] = s.GetStringForFile();
                 index++;
             }
-            File.WriteAllLines("sections.set",result);
+            File.WriteAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//sections.set", result);
         } 
         public int Count() { return settings.Count(); }
         public void Add(SettingSections s) { settings.Add(s); }

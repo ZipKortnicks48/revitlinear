@@ -32,7 +32,7 @@ namespace RevitAPIFramework
         public List<XYZ> mainPoints = new List<XYZ>();
         public List<XYZ> mainTirePoints = new List<XYZ>();
 
-        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa", "INTOCABIN.rfa", "ARKRIGHTOUTPUTOP.rfa", "BIA.rfa", "BIAS.rfa","BIAL.rfa","SHLEIF.rfa" }; 
+        public List<string> staticFamilies = new List<string> { "ARKRIGHTOUTPUT.rfa", "BTH.rfa", "BTM.rfa", "ARKRIGHEMPTY.rfa","GAP.rfa", "TABLESTRING.rfa","TABLEHEADER.rfa", "INTOCABIN.rfa", "ARKRIGHTOUTPUTOP.rfa", "BIA.rfa", "BIAS.rfa","BIAL.rfa","SHLEIF.rfa","STATEMENTCABELS.rfa" }; 
         void getBasEquipments(Document doc)
         {
 
@@ -63,7 +63,7 @@ namespace RevitAPIFramework
         }
         private void getPathes()
         {
-            this.pathes = File.ReadAllLines("families.set");
+            this.pathes = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//families.set");
             int i = 0;
             foreach (ARKModule block in ARKBLocks) {
                 string pathes2 = pathes[i].Replace('\\','\'');
@@ -103,7 +103,7 @@ namespace RevitAPIFramework
         {
             foreach (string s in staticFamilies)
             {
-                string file_path = File.ReadAllText("settings.set");
+                string file_path = File.ReadAllText("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//settings.set");
                 file_path += "\\static\\" + s;
                 loader.LoadFamilyIntoProject(file_path, doc);
             }
@@ -167,7 +167,7 @@ namespace RevitAPIFramework
             
             foreach (ElementId vd in drawingviews)
             {
-                string[] s = File.ReadAllLines("intocabin.set");
+                string[] s = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//intocabin.set");
                 ARKModule block=null;
                 ViewDrafting view = new FilteredElementCollector(doc).OfClass(typeof(ViewDrafting)).Cast<ViewDrafting>().Where(x => x.Id==vd).FirstOrDefault();
 
@@ -277,7 +277,7 @@ namespace RevitAPIFramework
                 trans.Commit();
                 trans.Start("добавление параметров");
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
-                next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0,1))/*+Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())*/);//ввести новый параметр
+                next.LookupParameter("номер шлейфа").Set(Double.Parse((index+1).ToString())/*Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0,1))/*+Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())*/);//ввести новый параметр
                 next.LookupParameter("Длина кабеля").Set(getNormalCount(mep.LookupParameter("Длина").AsDouble()));
                 next.Symbol.LookupParameter("type").Set("ОП");
                 SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
@@ -332,16 +332,35 @@ namespace RevitAPIFramework
             if (ark.systems.Count <= ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger())
             {
                 end = DrawRemain(new XYZ(point.X, point.Y - (index * len * 10)+0.08, 0),doc,view, ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger(),ark);
-                
             }
             else
             {
                 throw new Exception("Ошибка! Количество шлейфов в выбранном семействе меньше, чем в Revit-модели!");
             }
+            DrawStatementCabeles(end,doc,view,ark);
             mainTirePoints.Add(new XYZ(point.X, point.Y - index * len * 10, 0));
             mainTirePoints.Add(new XYZ(end.X,end.Y-0.08,0));
             geometry.AddLines(doc, view, geometry.ConnectLinesByPoints(mainTirePoints));
             mainTirePoints.Clear();
+        }
+        void DrawStatementCabeles(XYZ start, Document doc, ViewDrafting view, ARKModule ark)
+        {
+            FamilySymbol famToPlace = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().Where(x => x.Name == "STATEMENTCABELS").FirstOrDefault();
+            Transaction trans = new Transaction(doc);
+            trans.Start("Помещен на рисунок");
+            FamilyInstance next = doc.Create.NewFamilyInstance(new XYZ(start.X, start.Y - 0.2, 0), famToPlace, view);
+            double len = 0;
+            foreach (MEPSystem mep in ark.systems)
+            {
+                len+= getNormalCount(mep.LookupParameter("Длина").AsDouble());
+            }
+            next.LookupParameter("Внешняя длина").Set(len);
+            SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
+            next.LookupParameter("Внешняя марка").Set(s.GetStrForDrawing());
+            string[] st = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//intocabin.set");
+            next.LookupParameter("Внутришкафная марка").Set(st[0] + "-" + st[2]);
+            next.LookupParameter("Внутришкафная длина").Set(Double.Parse(st[1]));
+            trans.Commit();
         }
         XYZ DrawRemain(XYZ start, Document doc, ViewDrafting view, int last, ARKModule ark) {
             XYZ returnPoint=start;

@@ -14,7 +14,7 @@ namespace RevitAPIFramework
 {
     public partial class Form1 : System.Windows.Forms.Form
     {
-        public List<ARKModule> blocks;
+        public List<ARKModule> blocks; 
         private string[] files;
         private Func<List<ARKModule>,bool> action;
         private SettingSectionsCreator settings;
@@ -30,7 +30,7 @@ namespace RevitAPIFramework
         {
             try
             {
-                string[] s = File.ReadAllLines("intocabin.set");
+                string[] s = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//intocabin.set");
                 textBox1.Text = s[0];
                 textBox2.Text = s[1];
                 textBox5.Text = s[2];
@@ -45,15 +45,15 @@ namespace RevitAPIFramework
                     int rowNumber = dataGridView1.Rows.Add();
                     dataGridView1.Rows[rowNumber].Cells["ColumnARK"].Value = module.getFullName();
                 }
-                string set_path = "settings.set";
-                string folder_path = File.ReadAllText("settings.set");
+                string set_path = "C://ProgramData//Autodesk//Revit//Addins//2019//Linear//settings.set";
+                string folder_path = File.ReadAllText("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//settings.set");
                 label5.Text = folder_path;
                 files = Directory.GetFiles(folder_path, "*.rfa");
                 if (files.Length != 0)
                 {
                     label6.Text = files.Length.ToString();
                     bindingSource1.DataSource = files;
-                    set_path = "families.set";
+                    set_path = "C://ProgramData//Autodesk//Revit//Addins//2019//Linear//families.set";
                     string[] strs = File.ReadAllLines(set_path);
                     int last;
                     if (strs.Length > blocks.Count) last = blocks.Count; else last = strs.Length;
@@ -89,7 +89,7 @@ namespace RevitAPIFramework
         {
             try
             {
-                string path = "families.set";
+                string path = "C://ProgramData//Autodesk//Revit//Addins//2019//Linear//families.set";
                 File.WriteAllText(path, "");
                 List<string> families = new List<string>();
                 for (int i = 0; i < blocks.Count; i++)
@@ -113,7 +113,7 @@ namespace RevitAPIFramework
 
                     if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
                     {
-                        string path = "settings.set";
+                        string path = "C://ProgramData//Autodesk//Revit//Addins//2019//Linear//settings.set";
                         string createText = fbd.SelectedPath;
                         File.WriteAllText(path, createText);
                     }
@@ -138,7 +138,7 @@ namespace RevitAPIFramework
                 str[0] = textBox1.Text;
                 str[1] = textBox2.Text;
                 str[2] = textBox5.Text;
-                File.WriteAllLines("intocabin.set",str);
+                File.WriteAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//intocabin.set", str);
             }
             catch (Exception ex) {
                 MessageBox.Show(ex.ToString());
@@ -210,7 +210,7 @@ namespace RevitAPIFramework
                 {
                     string name = m.Name + "-й шлейф";
                     double s = getS(getI(mep), getL(m, ark.systems.Count));
-                    comboBox1.Items.Add(name + ": " + s.ToString() + "мм^2");
+                    comboBox1.Items.Add(name + ": " + s.ToString());
                 }
                 try
                 {
@@ -250,7 +250,7 @@ namespace RevitAPIFramework
                     SettingSections s = new SettingSections();
                     s.SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text);
                     settings.Add(s);
-                }
+               }
                 List<string> namesARK = new List<string>();
                 foreach (Object str in listBox1.Items)
                 {
