@@ -12,12 +12,13 @@ namespace RevitAPIFramework
         public string ark="";
         public string mark="";
         public string section="";
-        
-        public void SettingSectionsFromForm(string _ark, string a, string b, string c, string d)
+        public string op = "ОП";
+        public void SettingSectionsFromForm(string _ark, string a, string b, string c, string d, string _op)
         {
             ark = _ark;
             mark = a;
             section =  b + "x" + c + "x" + d;
+            op=_op;
         }
         public void SettingSectionsFromFile(string _ark, string _mark, string _section)
         {
@@ -27,7 +28,7 @@ namespace RevitAPIFramework
         }
       public  string GetStringForFile()
         {
-            return ark + "&" + mark + ";" + section;
+            return ark + "&" + op +"&"+mark + ";" + section;
         }
         public string GetStrForDrawing() {
             return mark + " " + section;

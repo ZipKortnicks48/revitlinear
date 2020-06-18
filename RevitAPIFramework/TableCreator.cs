@@ -37,7 +37,15 @@ namespace RevitAPIFramework
                 {
                     foreach (Element e in s.Elements)
                     {
-                        table.addElement(e.Name,"");
+                        string str="";
+                        string mark = e.LookupParameter("Марка").AsString();
+                        if (mark.Contains("BTM")) { 
+                            str = "BTM"; 
+                        }
+                        if (mark.Contains("BTH")) { 
+                            str = "BTH";
+                        }
+                        table.addElement(e.Name,str);
                     }
                 }
             
@@ -45,7 +53,25 @@ namespace RevitAPIFramework
             {
                 foreach (Element e in s.Elements)
                 {
-                    table.addElement(e.Name, "");
+                    string str = "";
+                    string mark = e.LookupParameter("Семейство и типоразмер").AsValueString();
+                    if (mark.Contains("светозвук") || mark.Contains("комбинир"))
+                    {
+                        str = "BIA";
+                       
+                    }
+                    if (mark.Contains("звуковой") && !mark.Contains("светозвук"))
+                    {
+                        str = "BIAS";
+                       
+                    }
+                    if (mark.Contains("световой"))
+                    {
+                        str = "BIAL";
+                       
+                    }
+
+                    table.addElement(e.Name, str);
                 }
             }
         }

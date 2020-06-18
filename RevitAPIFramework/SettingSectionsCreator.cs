@@ -18,10 +18,12 @@ namespace RevitAPIFramework
             foreach(string s in str)
             {
                 string[] arrSet= s.Split('&');
+                string op = arrSet[1];
                 string ark = arrSet[0];
-                arrSet = arrSet[1].Split(';');
+                arrSet = arrSet[2].Split(';');
                 SettingSections set = new SettingSections();
                 set.SettingSectionsFromFile(ark,arrSet[0],arrSet[1]);
+                set.op = op;
                 settings.Add(set);
             }
         }

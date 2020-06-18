@@ -279,8 +279,9 @@ namespace RevitAPIFramework
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
                 next.LookupParameter("номер шлейфа").Set(Double.Parse((index+1).ToString())/*Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0,1))/*+Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())*/);//ввести новый параметр
                 next.LookupParameter("Длина кабеля").Set(getNormalCount(mep.LookupParameter("Длина").AsDouble()));
-                next.Symbol.LookupParameter("type").Set("ОП");
+                
                 SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
+                next.LookupParameter("type").Set(s.op);
                 next.LookupParameter("Вид кабеля").Set(s.GetStrForDrawing());
                 trans.Commit();
                 DrawSensorsAlert(new XYZ(point.X + next.LookupParameter("Длина").AsDouble() * 10, point.Y - index * len * 10 - index * 0.2, 0), mep, Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)), view, doc);
@@ -353,6 +354,10 @@ namespace RevitAPIFramework
             foreach (MEPSystem mep in ark.systems)
             {
                 len+= getNormalCount(mep.LookupParameter("Длина").AsDouble());
+            }
+            foreach (MEPSystem mep in ark.alertSystems)
+            {
+                len += getNormalCount(mep.LookupParameter("Длина").AsDouble());
             }
             next.LookupParameter("Внешняя длина").Set(len);
             SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
@@ -495,17 +500,17 @@ namespace RevitAPIFramework
             string bialMes = "";
             foreach (Element e in mep.Elements)
             {
-                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("комб"))
+                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("комбинированн") || e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("светозвук"))
                 {
                     try { biaMes = e.Name.Split('"')[1]; } catch { };
                     ++bia;
                 }
-                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("свет"))
+                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("светов"))
                 {
                     try { bialMes = e.Name.Split('"')[1]; } catch { };
                     ++bial;
                 }
-                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("звук"))
+                if (e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("звуковой")&&!e.LookupParameter("Семейство и типоразмер").AsValueString().Contains("светозвуковой"))
                 {
                     
                     ++bias;

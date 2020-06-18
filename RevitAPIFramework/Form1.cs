@@ -133,6 +133,11 @@ namespace RevitAPIFramework
 
         private void button3_Click(object sender, EventArgs e)
         {
+            if (textBox1.Text == "" || textBox2.Text == "" || textBox5.Text == "")
+            {
+                MessageBox.Show("Заполните все поля!");
+                return;
+            }
             try {
                 string[] str = new string[3];
                 str[0] = textBox1.Text;
@@ -203,8 +208,8 @@ namespace RevitAPIFramework
                 len = getNormalCount(len);
                 double I = 0;
                 I = getI(mep);
-                label23.Text = len.ToString();
-                label24.Text = I.ToString();
+                //label23.Text = len.ToString();
+               // label24.Text = I.ToString();
 
                 foreach (MEPSystem m in ark.systems)
                 {
@@ -221,6 +226,7 @@ namespace RevitAPIFramework
                     textBox6.Text = sections[0];
                     textBox7.Text = sections[1];
                     textBox3.Text = sections[2];
+                    textBox8.Text = set.op;
                 }
                 catch
                 {
@@ -230,25 +236,29 @@ namespace RevitAPIFramework
             catch (Exception ex)
             {
                 MessageBox.Show(ex.ToString());
-              
             }
         }
 
-        private void button4_Click(object sender, EventArgs e)
+        /*private void button4_Click(object sender, EventArgs e)
         {
             settings.writeToFile();
-        }
+        }*/
 
         private void button5_Click(object sender, EventArgs e)
         {
+            if (textBox4.Text == "" || textBox6.Text == "" || textBox7.Text == ""|| textBox3.Text == "" || textBox8.Text == "")
+            {
+                MessageBox.Show("Заполните все поля!");
+                return;
+            }
             try
             {
                 int index = settings.loadSettingByARK(listBox1.SelectedItem.ToString());
-                if (index < settings.Count()) { settings.getByIndex(index).SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text); }
+                if (index < settings.Count()) { settings.getByIndex(index).SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text,textBox8.Text); }
                 else
                 {
                     SettingSections s = new SettingSections();
-                    s.SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text);
+                    s.SettingSectionsFromForm(listBox1.SelectedItem.ToString(), textBox4.Text, textBox6.Text, textBox7.Text, textBox3.Text,textBox8.Text);
                     settings.Add(s);
                }
                 List<string> namesARK = new List<string>();
@@ -263,6 +273,7 @@ namespace RevitAPIFramework
                 MessageBox.Show(ex.ToString());
                
             }
+            settings.writeToFile();
         }
     }
 }
