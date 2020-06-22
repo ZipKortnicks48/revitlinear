@@ -101,6 +101,23 @@ namespace RevitAPIFramework
                 MessageBox.Show(ex.ToString());
             }
         }
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            try
+            {
+                string path = "C://ProgramData//Autodesk//Revit//Addins//2019//Linear//families.set";
+                File.WriteAllText(path, "");
+                List<string> families = new List<string>();
+                for (int i = 0; i < blocks.Count; i++)
+                { families.Add(dataGridView1.Rows[i].Cells["ColumnFamily"].Value.ToString()); }
+                File.AppendAllLines(path, families);
+                MessageBox.Show("Настройки сохранены.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка сохранения настроек. Провертьте правильность введенных данных на первой вкладке.");
+            }
+        }
 
         //сохранение папки семейств, обновление настроек
         private void button2_Click(object sender, EventArgs e)
@@ -144,9 +161,10 @@ namespace RevitAPIFramework
                 str[1] = textBox2.Text;
                 str[2] = textBox5.Text;
                 File.WriteAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//intocabin.set", str);
+                MessageBox.Show("Настройки сохранены.");
             }
             catch (Exception ex) {
-                MessageBox.Show(ex.ToString());
+                MessageBox.Show("Ошибка сохранения настроек внутришкафного соединения. Проверьте правильность введенных данных.");
             }
         }
 
@@ -267,10 +285,11 @@ namespace RevitAPIFramework
                     namesARK.Add(str.ToString());
                 }
                 settings.deleteIfNot(namesARK);
+                MessageBox.Show("Настройки сохранены.");
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.ToString());
+                MessageBox.Show("Ошибка сохранения настроек внешнего соединения. Проверьте правильность введенных данных.");
                
             }
             settings.writeToFile();

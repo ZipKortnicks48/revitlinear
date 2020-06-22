@@ -45,6 +45,8 @@
             this.label5 = new System.Windows.Forms.Label();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.textBox8 = new System.Windows.Forms.TextBox();
+            this.label19 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
             this.button5 = new System.Windows.Forms.Button();
             this.comboBox1 = new System.Windows.Forms.ComboBox();
@@ -69,8 +71,6 @@
             this.label8 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.textBox1 = new System.Windows.Forms.TextBox();
-            this.label19 = new System.Windows.Forms.Label();
-            this.textBox8 = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.bindingSource1)).BeginInit();
             this.tabControl1.SuspendLayout();
@@ -250,6 +250,22 @@
             this.groupBox2.Text = "Шлейфы";
             this.groupBox2.Enter += new System.EventHandler(this.groupBox2_Enter);
             // 
+            // textBox8
+            // 
+            this.textBox8.Location = new System.Drawing.Point(386, 153);
+            this.textBox8.Name = "textBox8";
+            this.textBox8.Size = new System.Drawing.Size(68, 20);
+            this.textBox8.TabIndex = 23;
+            // 
+            // label19
+            // 
+            this.label19.AutoSize = true;
+            this.label19.Location = new System.Drawing.Point(269, 152);
+            this.label19.Name = "label19";
+            this.label19.Size = new System.Drawing.Size(111, 13);
+            this.label19.TabIndex = 22;
+            this.label19.Text = "Индекс оповещения";
+            // 
             // label14
             // 
             this.label14.AutoSize = true;
@@ -261,9 +277,9 @@
             // 
             // button5
             // 
-            this.button5.Location = new System.Drawing.Point(438, 190);
+            this.button5.Location = new System.Drawing.Point(513, 190);
             this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(150, 23);
+            this.button5.Size = new System.Drawing.Size(75, 23);
             this.button5.TabIndex = 20;
             this.button5.Text = "Сохранить";
             this.button5.UseVisualStyleBackColor = true;
@@ -386,9 +402,9 @@
             this.groupBox1.Controls.Add(this.label8);
             this.groupBox1.Controls.Add(this.label7);
             this.groupBox1.Controls.Add(this.textBox1);
-            this.groupBox1.Location = new System.Drawing.Point(6, 16);
+            this.groupBox1.Location = new System.Drawing.Point(6, 6);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(594, 100);
+            this.groupBox1.Size = new System.Drawing.Size(594, 110);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Внутришкафное соединение";
@@ -411,7 +427,7 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(513, 54);
+            this.button3.Location = new System.Drawing.Point(513, 71);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(75, 23);
             this.button3.TabIndex = 5;
@@ -460,22 +476,6 @@
             this.textBox1.Size = new System.Drawing.Size(103, 20);
             this.textBox1.TabIndex = 0;
             // 
-            // label19
-            // 
-            this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(269, 158);
-            this.label19.Name = "label19";
-            this.label19.Size = new System.Drawing.Size(111, 13);
-            this.label19.TabIndex = 22;
-            this.label19.Text = "Индекс оповещения";
-            // 
-            // textBox8
-            // 
-            this.textBox8.Location = new System.Drawing.Point(386, 158);
-            this.textBox8.Name = "textBox8";
-            this.textBox8.Size = new System.Drawing.Size(68, 20);
-            this.textBox8.TabIndex = 23;
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -486,6 +486,7 @@
             this.MinimumSize = new System.Drawing.Size(641, 408);
             this.Name = "Form1";
             this.Text = "Установка соответствий модулей АРК";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.bindingSource1)).EndInit();

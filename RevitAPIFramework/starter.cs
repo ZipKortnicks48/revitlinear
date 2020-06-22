@@ -188,7 +188,7 @@ namespace RevitAPIFramework
                 }
                 return Result.Succeeded;
             }
-            catch { MessageBox.Show("Ошибка"); return Result.Succeeded; }
+            catch (Exception e){ MessageBox.Show(e.Message); return Result.Succeeded; }
         } 
     }
 }

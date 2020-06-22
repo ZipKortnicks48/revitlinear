@@ -14,6 +14,7 @@ using RevitAPIFramework;
 using System.IO;
 using System.Data.SqlTypes;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace RevitAPIFramework
 {
@@ -41,6 +42,7 @@ namespace RevitAPIFramework
                .OfClass(typeof(MEPSystem));
             IOrderedEnumerable<MEPSystem> systemsSorted =  from MEPSystem s in systems orderby Int32.Parse(s.Name) ascending select s;
             int i = 0;
+            if (systemsSorted.Count() == 0) { throw new Exception("Не обнаружены системы в Revit-модели."); }
             foreach (MEPSystem system in systemsSorted)
             {
                 string sysId = system.BaseEquipment.Id.ToString();
@@ -63,28 +65,37 @@ namespace RevitAPIFramework
         }
         private void getPathes()
         {
-            this.pathes = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//families.set");
-            int i = 0;
-            foreach (ARKModule block in ARKBLocks) {
-                string pathes2 = pathes[i].Replace('\\','\'');
-                string[] strings = pathes2.Split('\'');
-                block.addFilepath(pathes[i]);
-                block.addFilename(strings[strings.Length - 1].Replace(".rfa",""));
-                i++;
+            try
+            {
+                this.pathes = File.ReadAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//families.set");
+                int i = 0;
+                foreach (ARKModule block in ARKBLocks)
+                {
+                    string pathes2 = pathes[i].Replace('\\', '\'');
+                    string[] strings = pathes2.Split('\'');
+                    block.addFilepath(pathes[i]);
+                    block.addFilename(strings[strings.Length - 1].Replace(".rfa", ""));
+                    i++;
+                }
             }
+            catch { throw new Exception("Неверно указаны настройки соответствий семейств."); }
         }
         public void loadFamilies(Document doc)
         {
-            foreach (ARKModule module in ARKBLocks)
+            try
             {
-                FilteredElementCollector a = new FilteredElementCollector(doc).OfClass(typeof(Family));
-                Family family = a.FirstOrDefault<Element>(e => e.Name.Equals(module.filename)) as Family;
-                if (null == family)
+                foreach (ARKModule module in ARKBLocks)
                 {
-                    string FamilyPath = module.filepath;
-                    loader.LoadFamilyIntoProject(FamilyPath,doc);
+                    FilteredElementCollector a = new FilteredElementCollector(doc).OfClass(typeof(Family));
+                    Family family = a.FirstOrDefault<Element>(e => e.Name.Equals(module.filename)) as Family;
+                    if (null == family)
+                    {
+                        string FamilyPath = module.filepath;
+                        loader.LoadFamilyIntoProject(FamilyPath, doc);
+                    }
                 }
             }
+            catch { throw new Exception("Ошибка загрузки семейств в проект."); }
         }
         
 
@@ -92,38 +103,52 @@ namespace RevitAPIFramework
         //Добавление системы шлейфа к блоку
         void findAndAddSystem(MEPSystem system)
         {
-            ARKBLocks.ForEach(e => { 
-                if (e.id == system.BaseEquipment.Id.ToString()) { 
-                    if (system.LookupParameter("Комментарии").AsString()==null) e.addSystem(system); else e.addAlertSystem(system);
-                } 
+            try
+            {
+                ARKBLocks.ForEach(e =>
+                {
+                    if (e.id == system.BaseEquipment.Id.ToString())
+                    {
+                        if (system.LookupParameter("Комментарии").AsString() == null) e.addSystem(system); else e.addAlertSystem(system);
+                    }
+                }
+                );
             }
-            );
+            catch { throw new Exception("Ошибка добавления системы шлейфа к блоку."); }
         }
         void DrawAll(Document doc)
         {
             foreach (string s in staticFamilies)
             {
-                string file_path = File.ReadAllText("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//settings.set");
-                file_path += "\\static\\" + s;
-                loader.LoadFamilyIntoProject(file_path, doc);
+                try
+                {
+                    string file_path = File.ReadAllText("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//settings.set");
+                    file_path += "\\static\\" + s;
+                    loader.LoadFamilyIntoProject(file_path, doc);
+                }
+                catch { throw new Exception("Ошибка загрузки семейств чертежных примитивов из папки static."); }
             }
             FilteredElementCollector collector = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol));
             foreach (ARKModule b in ARKBLocks)
             {
-                FamilySymbol famToPlace=null;
-                ViewFamilyType vt = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Drafting);
-                ElementId id = vt.Id;
-                Transaction trans = new Transaction(doc);
-                trans.Start("Отрисовка");
-                ViewDrafting vd = ViewDrafting.Create(doc, id);
-                b.setVD(vd);
-                ElementId viewId = vd.Id;
-                drawingviews.Add(viewId);
-                famToPlace = collector.Cast<FamilySymbol>().Where(x => x.Name == b.filename).First();
-                b.revitSymbol = famToPlace;               
-                b.revitModule=doc.Create.NewFamilyInstance(new XYZ(0,0,0),famToPlace,vd);
-                arkmoduleIds.Add(b.revitModule.Id);
-                trans.Commit();
+                try
+                {
+                    FamilySymbol famToPlace = null;
+                    ViewFamilyType vt = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Drafting);
+                    ElementId id = vt.Id;
+                    Transaction trans = new Transaction(doc);
+                    trans.Start("Отрисовка");
+                    ViewDrafting vd = ViewDrafting.Create(doc, id);
+                    b.setVD(vd);
+                    ElementId viewId = vd.Id;
+                    drawingviews.Add(viewId);
+                    famToPlace = collector.Cast<FamilySymbol>().Where(x => x.Name == b.filename).First();
+                    b.revitSymbol = famToPlace;
+                    b.revitModule = doc.Create.NewFamilyInstance(new XYZ(0, 0, 0), famToPlace, vd);
+                    arkmoduleIds.Add(b.revitModule.Id);
+                    trans.Commit();
+                }
+                catch { throw new Exception("Ошибка добавления АРК-модулей на чертежные листы."); }
                 
             }
 
@@ -133,34 +158,42 @@ namespace RevitAPIFramework
 
             foreach (ARKModule b in ARKBLocks)
             {
-                b.createTable(doc, new XYZ(10, 3, 0));
+                try
+                {
+                    b.createTable(doc, new XYZ(10, 3, 0));
+                }
+                catch { throw new Exception("Ошибка создания таблицы элементов."); }
             }
             
 
         }
         void SetArkIndexes(Document doc)
         {
-            FilteredElementCollector placedCollector = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance));
-            foreach (ARKModule b in ARKBLocks)
+            try
             {
-                foreach (FamilyInstance f in placedCollector)
+                FilteredElementCollector placedCollector = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance));
+                foreach (ARKModule b in ARKBLocks)
                 {
-                    
-                    if (f.Id.ToString() == b.revitModule.Id.ToString())
+                    foreach (FamilyInstance f in placedCollector)
                     {
-                        Parameter param=f.LookupParameter("ark-module");
-                        
-                        Parameter param2 = f.LookupParameter("ark-module");
-                        using (Transaction t = new Transaction(doc, "Добавление индексов"))
+
+                        if (f.Id.ToString() == b.revitModule.Id.ToString())
                         {
-                            t.Start();
-                            param2.Set(Int32.Parse(b.mark.Remove(b.mark.IndexOf("ARK"), 3)));
-                            t.Commit();
+                            Parameter param = f.LookupParameter("ark-module");
+
+                            Parameter param2 = f.LookupParameter("ark-module");
+                            using (Transaction t = new Transaction(doc, "Добавление индексов"))
+                            {
+                                t.Start();
+                                param2.Set(Int32.Parse(b.mark.Remove(b.mark.IndexOf("ARK"), 3)));
+                                t.Commit();
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
+            catch { throw new Exception("Ошибка параметров АРК. Проверьте правильность параметров модели, либо выбранного семейства для отрисовки."); }
         }
         void DrawLines(Document doc)
         {
@@ -278,7 +311,7 @@ namespace RevitAPIFramework
                 trans.Start("добавление параметров");
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
                 next.LookupParameter("номер шлейфа").Set(Double.Parse((index+1).ToString())/*Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0,1))/*+Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())*/);//ввести новый параметр
-                next.LookupParameter("Длина кабеля").Set(getNormalCount(mep.LookupParameter("Длина").AsDouble()));
+                next.LookupParameter("Длина кабеля").Set(getNormalCount(Double.Parse(mep.LookupParameter("Длина").AsValueString()) / 1000));
                 
                 SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
                 next.LookupParameter("type").Set(s.op);
@@ -318,7 +351,8 @@ namespace RevitAPIFramework
                 trans.Start("добавление параметров");
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
                 next.LookupParameter("номер шлейфа").Set(Double.Parse(mep.Name));
-                next.LookupParameter("Длина кабеля").Set(getNormalCount(mep.LookupParameter("Длина").AsDouble()));
+                double rr = mep.LookupParameter("Длина").AsDouble();
+                next.LookupParameter("Длина кабеля").Set(getNormalCount(Double.Parse(mep.LookupParameter("Длина").AsValueString())/1000));
                 SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
                 next.LookupParameter("Вид кабеля").Set(s.GetStrForDrawing());
                 trans.Commit();
@@ -353,11 +387,11 @@ namespace RevitAPIFramework
             double len = 0;
             foreach (MEPSystem mep in ark.systems)
             {
-                len+= getNormalCount(mep.LookupParameter("Длина").AsDouble());
+                len+= getNormalCount(Double.Parse(mep.LookupParameter("Длина").AsValueString())/1000);
             }
             foreach (MEPSystem mep in ark.alertSystems)
             {
-                len += getNormalCount(mep.LookupParameter("Длина").AsDouble());
+                len += getNormalCount(Double.Parse(mep.LookupParameter("Длина").AsValueString()) / 1000);
             }
             next.LookupParameter("Внешняя длина").Set(len);
             SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
@@ -586,17 +620,23 @@ namespace RevitAPIFramework
       ref string message,
       ElementSet elements)
         {
-           // try
-            //{ //Получение объектов приложения и документа
+            try
+           { //Получение объектов приложения и документа
                 UIApplication uiApp = commandData.Application;
                 Document doc = uiApp.ActiveUIDocument.Document;
                 this.getBasEquipments(doc);//собираем в класс
                 this.getPathes();
                 this.loadFamilies(doc);
-                this.DrawAll(doc);//отрисовка
-           /* }
-            catch (Exception ex) { MessageBox.Show("Ошибка!"); }*/
-            return Result.Succeeded;
+                try
+                {
+                    this.DrawAll(doc);//отрисовка
+                }
+                catch { throw new Exception("Ошибка параметров АРК.Проверьте правильность параметров модели, либо выбранного семейства для отрисовки."); }
+                return Result.Succeeded;
+
+            }
+            catch (Exception ex) { TaskDialog.Show("Ошибка",ex.Message); return Result.Failed; }
+            
         }
     }
 }
