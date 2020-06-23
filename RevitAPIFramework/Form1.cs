@@ -85,7 +85,7 @@ namespace RevitAPIFramework
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        /*private void button1_Click(object sender, EventArgs e)
         {
             try
             {
@@ -100,7 +100,7 @@ namespace RevitAPIFramework
             catch (Exception ex) {
                 MessageBox.Show(ex.ToString());
             }
-        }
+        }*/
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             try
@@ -111,7 +111,26 @@ namespace RevitAPIFramework
                 for (int i = 0; i < blocks.Count; i++)
                 { families.Add(dataGridView1.Rows[i].Cells["ColumnFamily"].Value.ToString()); }
                 File.AppendAllLines(path, families);
-                MessageBox.Show("Настройки сохранены.");
+
+                if (textBox1.Text == "" || textBox2.Text == "" || textBox5.Text == "")
+                {
+                    MessageBox.Show("Заполните все поля!");
+                    return;
+                }
+                try
+                {
+                    string[] str = new string[3];
+                    str[0] = textBox1.Text;
+                    str[1] = textBox2.Text;
+                    str[2] = textBox5.Text;
+                    File.WriteAllLines("C://ProgramData//Autodesk//Revit//Addins//2019//Linear//intocabin.set", str);
+                    
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ошибка сохранения настроек внутришкафного соединения. Проверьте правильность введенных данных.");
+                }
+
             }
             catch (Exception ex)
             {
