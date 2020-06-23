@@ -311,6 +311,8 @@ namespace RevitAPIFramework
                 trans.Start("добавление параметров");
                 next.LookupParameter("ark").Set(Int32.Parse(ark.mark.Remove(ark.mark.IndexOf("ARK"), 3)));
                 next.LookupParameter("номер шлейфа").Set(Double.Parse((index+1).ToString())/*Double.Parse(mep.LookupParameter("Комментарии").AsString().Remove(0,1))/*+Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString())*/);//ввести новый параметр
+                double countShleifs = Double.Parse(ark.revitModule.Symbol.LookupParameter("Количество шлейфов справа").AsInteger().ToString());
+                next.LookupParameter("Количество шлейфов справа").Set(countShleifs);
                 next.LookupParameter("Длина кабеля").Set(getNormalCount(Double.Parse(mep.LookupParameter("Длина").AsValueString()) / 1000));
                 
                 SettingSections s = settings.getByIndex(settings.loadSettingByARK(ark.mark));
